@@ -1,304 +1,205 @@
+/**
+ * TodoMVC Rendering Functions
+ * Clean, simple rendering with your own code
+ */
 import { app } from "./AppInstance.js";
-import { handleNewTodoKeydown, handleToggleAll, handleEditKeydown, clearCompletedTodos, toggleTodo, editTodo, startEdit, removeTodo } from "./Utils.js";
-import { createVirtualElement } from "../Framework/VDom.js";
+import { 
+    addTodo, 
+    toggleTodo, 
+    deleteTodo, 
+    clearCompleted, 
+    toggleAll,
+    editTodo,
+    getFilteredTodos,
+    getCounts 
+} from "./Utils.js";
+import { createElement } from "../Framework/VDom.js";
 
-// Renders the header section with title and new todo input
-function renderHeader() {
-    const state = app.getState();
-
-    return createVirtualElement("header", { class: "header" }, "", [
-        createVirtualElement("h1", {}, "todos", []),
-        createVirtualElement(
-            "input",
-            {
-                class: "new-todo",
-                placeholder: "What needs to be done?",
-                autofocus: "",
-                onkeydown: handleNewTodoKeydown,
-            },
-            "",
-            []
-        ),
-    ]);
-}
-
-// Renders the main section containing the todo list and toggle-all functionality
-function renderMain(visibleTodos) {
-    const state = app.getState();
-
-    if (!state.todos || state.todos.length === 0) {
-        return createVirtualElement(
-            "main",
-            { class: "main", style: "display: none;" },
-            "",
-            []
-        );
+// Render the header with title and input
+export function renderHeader() {
+    function handleKeyDown(e) {
+        if (e.key === 'Enter' && e.target.value.trim()) {
+            addTodo(e.target.value.trim());
+            e.target.value = '';
+        }
     }
 
-    const allCompleted =
-        state.todos.length > 0 && state.todos.every((todo) => todo.completed);
-
-    return createVirtualElement(
-        "main",
-        { class: "main", style: "display: block;" },
-        "",
-        [
-            createVirtualElement("div", { class: "toggle-all-container" }, "", [
-                createVirtualElement(
-                    "input",
-                    {
-                        id: "toggle-all",
-                        class: "toggle-all",
-                        type: "checkbox",
-                        checked: allCompleted,
-                        onchange: handleToggleAll,
-                    },
-                    "",
-                    []
-                ),
-                createVirtualElement(
-                    "label",
-                    {
-                        class: "toggle-all-label",
-                        for: "toggle-all",
-                    },
-                    "Mark all as complete",
-                    []
-                ),
-            ]),
-            createVirtualElement(
-                "ul",
-                { class: "todo-list" },
-                "",
-                (visibleTodos || []).map((todo) => renderTodoItem(todo))
-            ),
-        ]
+    return createElement('header', { className: 'header' },
+        createElement('h1', {}, 'todos'),
+        createElement('input', {
+            className: 'new-todo',
+            placeholder: 'What needs to be done?',
+            autofocus: true,
+            onkeydown: handleKeyDown
+        })
     );
 }
 
-// Renders an individual todo item with toggle, edit, and delete functionality
-function renderTodoItem(todo) {
+// Render the main todo list section
+export function renderMain() {
+    const state = app.getState();
+    const filteredTodos = getFilteredTodos(state.todos, state.filter);
+    
+    if (!state.todos.length) {
+        return createElement('main', { 
+            className: 'main', 
+            style: 'display: none;' 
+        });
+    }
+
+    const allCompleted = state.todos.every(todo => todo.completed);
+
+    return createElement('main', { 
+        className: 'main',
+        style: 'display: block;' 
+    },
+        createElement('div', { className: 'toggle-all-container' },
+            createElement('input', {
+                id: 'toggle-all',
+                className: 'toggle-all',
+                type: 'checkbox',
+                checked: allCompleted,
+                onchange: () => toggleAll()
+            }),
+            createElement('label', {
+                className: 'toggle-all-label',
+                htmlFor: 'toggle-all'
+            }, 'Mark all as complete')
+        ),
+        createElement('ul', { className: 'todo-list' },
+            ...filteredTodos.map(todo => renderTodoItem(todo))
+        )
+    );
+}
+
+// Render individual todo item
+export function renderTodoItem(todo) {
     const state = app.getState();
     const isEditing = state.editingId === todo.id;
-    const classes = [];
-    if (todo.completed) classes.push("completed");
-    if (isEditing) classes.push("editing");
+    
+    let className = '';
+    if (todo.completed) className += 'completed ';
+    if (isEditing) className += 'editing ';
 
-    const children = [
-        createVirtualElement("div", { class: "view" }, "", [
-            createVirtualElement(
-                "input",
-                {
-                    class: "toggle",
-                    type: "checkbox",
-                    checked: todo.completed,
-                    onclick: () => toggleTodo(todo.id),
-                },
-                "",
-                []
-            ),
-            createVirtualElement(
-                "label",
-                {
-                    ondblclick: () => startEdit(todo.id),
-                },
-                todo.title,
-                []
-            ),
-            createVirtualElement(
-                "button",
-                {
-                    class: "destroy",
-                    onclick: () => removeTodo(todo.id),
-                },
-                "",
-                []
-            ),
-        ]),
-    ];
+    function handleEdit(e) {
+        if (e.key === 'Enter') {
+            editTodo(todo.id, e.target.value.trim());
+        } else if (e.key === 'Escape') {
+            app.setState({ editingId: null });
+        }
+    }
 
+    function startEdit() {
+        app.setState({ editingId: todo.id });
+    }
+
+    const viewDiv = createElement('div', { className: 'view' },
+        createElement('input', {
+            className: 'toggle',
+            type: 'checkbox',
+            checked: todo.completed,
+            onclick: () => toggleTodo(todo.id)
+        }),
+        createElement('label', {
+            ondblclick: startEdit
+        }, todo.title),
+        createElement('button', {
+            className: 'destroy',
+            onclick: () => deleteTodo(todo.id)
+        })
+    );
+
+    const children = [viewDiv];
+    
     if (isEditing) {
         children.push(
-            createVirtualElement(
-                "input",
-                {
-                    class: "edit",
-                    value: todo.title,
-                    onkeydown: (e) => handleEditKeydown(e, todo.id),
-                    onblur: () => {
-                        app.setState({ editingId: null, focusEditTodo: null })
-                    },
-                },
-                "",
-                []
-            )
+            createElement('input', {
+                className: 'edit',
+                value: todo.title,
+                onkeydown: handleEdit,
+                onblur: () => app.setState({ editingId: null })
+            })
         );
     }
 
-    return createVirtualElement(
-        "li",
-        {
-            "data-id": todo.id.toString(),
-            class: classes.join(" "),
-        },
-        "",
-        children
-    );
+    return createElement('li', {
+        className: className.trim(),
+        'data-id': todo.id
+    }, ...children);
 }
 
-// Renders the footer section with todo count, filters, and clear completed button
-function renderFooter() {
+// Render the footer with filters and counts
+export function renderFooter() {
     const state = app.getState();
-
-    if (!state.todos || state.todos.length === 0) {
-        return createVirtualElement(
-            "footer",
-            { class: "footer", style: "display: none;" },
-            "",
-            []
-        );
+    const { active, completed } = getCounts(state.todos);
+    
+    if (!state.todos.length) {
+        return createElement('footer', { 
+            className: 'footer',
+            style: 'display: none;' 
+        });
     }
 
-    const activeCount = (state.todos || []).filter(
-        (todo) => !todo.completed
-    ).length;
-    const completedCount = (state.todos || []).filter(
-        (todo) => todo.completed
-    ).length;
-    const itemText = activeCount === 1 ? "item" : "items";
-
-    return createVirtualElement(
-        "footer",
-        { class: "footer", style: "display: block;" },
-        "",
-        [
-            createVirtualElement("span", { class: "todo-count" }, "", [
-                createVirtualElement("strong", {}, activeCount.toString(), []),
-                createVirtualElement("span", {}, ` ${itemText} left!`, []),
-            ]),
-            createVirtualElement("ul", { class: "filters" }, "", [
-                renderFilterLink("All", "#/", state.filter === "all"),
-                renderFilterLink("Active", "#/active", state.filter === "active"),
-                renderFilterLink(
-                    "Completed",
-                    "#/completed",
-                    state.filter === "completed"
-                ),
-            ]),
-            completedCount > 0
-                ? createVirtualElement(
-                    "button",
-                    {
-                        class: "clear-completed",
-                        style: "display: block;",
-                        onclick: clearCompletedTodos,
-                    },
-                    "Clear completed",
-                    []
-                )
-                : createVirtualElement(
-                    "button",
-                    {
-                        class: "clear-completed",
-                        style: "display: none;",
-                    },
-                    "",
-                    []
-                ),
-        ].filter(Boolean)
+    return createElement('footer', { 
+        className: 'footer',
+        style: 'display: block;' 
+    },
+        createElement('span', { className: 'todo-count' },
+            createElement('strong', {}, active),
+            ` ${active === 1 ? 'item' : 'items'} left`
+        ),
+        createElement('ul', { className: 'filters' },
+            renderFilterLink('All', '#/', state.filter === 'all'),
+            renderFilterLink('Active', '#/active', state.filter === 'active'),
+            renderFilterLink('Completed', '#/completed', state.filter === 'completed')
+        ),
+        completed > 0 ? createElement('button', {
+            className: 'clear-completed',
+            onclick: () => clearCompleted()
+        }, 'Clear completed') : null
     );
 }
 
-// Helper function to render filter navigation links
+// Helper to render filter links
 function renderFilterLink(text, href, isSelected) {
-    const linkAttributes = { href: href };
-    if (isSelected) {
-        linkAttributes.class = "selected";
-    }
-
-    return createVirtualElement("li", {}, "", [
-        createVirtualElement("a", linkAttributes, text, []),
-    ]);
+    return createElement('li', {},
+        createElement('a', {
+            href: href,
+            className: isSelected ? 'selected' : ''
+        }, text)
+    );
 }
 
-// Renders the sidebar with framework information and links
-function renderSidebar() {
-    return [
-        createVirtualElement("header", {}, "", [
-            createVirtualElement("h3", {}, "Mini-Framework", []),
-            createVirtualElement("span", { class: "source-links" }, "", [
-                createVirtualElement("h5", {}, "Usage", []),
-                createVirtualElement(
-                    "a",
-                    {
-                        href: "https://github.com/JSundb/mini-framework/blob/main/FRAMEWORK_DOCS.md",
-                    },
-                    "Documentation",
-                    []
-                ),
-            ]),
-        ]),
-        createVirtualElement("hr", {}, "", []),
-        createVirtualElement("blockquote", { class: "quote speech-bubble" }, "", [
-            createVirtualElement(
-                "p",
-                {},
-                "A lightweight framework for building interactive web applications with virtual DOM creation, efficient DOM diffing, event management, client-side routing, and reactive state updates.",
-                []
-            ),
-            createVirtualElement("footer", {}, "", [
-                createVirtualElement(
-                    "a",
-                    { href: "https://developer.mozilla.org/en-US/docs/Web/JavaScript" },
-                    "Learn JavaScript",
-                    []
-                ),
-            ]),
-        ]),
-        createVirtualElement("hr", {}, "", []),
-        createVirtualElement("h4", {}, "Development Team", []),
-        createVirtualElement("ul", {}, "", [
-            createVirtualElement("li", {}, "", [
-                createVirtualElement("a", { href: "https://github.com/JSundb" }, "Johannes Sundbäck", []),
-            ]),
-            createVirtualElement("li", {}, "", [
-                createVirtualElement("a", { href: "https://github.com/abrakhova" }, "Ekaterina Abrakhova", []),
-            ]),
-            createVirtualElement("li", {}, "", [
-                createVirtualElement("a", { href: "https://github.com/srbudaev" }, "Sergei Budaev", []),
-            ]),
-        ]),
-        createVirtualElement("footer", {}, "", [
-            createVirtualElement("hr", {}, "", []),
-            createVirtualElement(
-                "em",
-                {},
-                "If you have other helpful links to share, or find any of the links above no longer work, please ",
-                []
-            ),
-            createVirtualElement(
-                "a",
-                { href: "https://github.com/JSundb/mini-framework/issues" },
-                "let us know",
-                []
-            ),
-        ]),
-    ];
+// Render sidebar info
+export function renderSidebar() {
+    return createElement('aside', { className: 'learn' },
+        createElement('header', {},
+            createElement('h3', {}, 'Mini-Framework'),
+            createElement('span', { className: 'source-links' },
+                createElement('h5', {}, 'Usage'),
+                createElement('a', {
+                    href: 'https://github.com/JSundb/mini-framework'
+                }, 'Documentation')
+            )
+        ),
+        createElement('hr'),
+        createElement('blockquote', { className: 'quote speech-bubble' },
+            createElement('p', {}, 'A lightweight framework for building interactive web applications with virtual DOM creation, efficient DOM diffing, event management, client-side routing, and reactive state updates.')
+        )
+    );
 }
 
-// Renders the info footer section with instructions and credits
-function renderInfo() {
-    return createVirtualElement("footer", { class: "info" }, "", [
-        createVirtualElement("p", {}, "Double-click to edit a todo", []),
-        createVirtualElement("p", {}, "", [
-            createVirtualElement("span", {}, "Created by ", []),
-            createVirtualElement("a", { href: "#" }, "The Last of the Mohicans 2", []),
-        ]),
-        createVirtualElement("p", {}, "", [
-            createVirtualElement("span", {}, "Part of ", []),
-            createVirtualElement("a", { href: "http://todomvc.com" }, "TodoMVC", []),
-        ]),
-    ]);
+// Render info footer
+export function renderInfo() {
+    return createElement('footer', { className: 'info' },
+        createElement('p', {}, 'Double-click to edit a todo'),
+        createElement('p', {},
+            'Created by ',
+            createElement('a', { href: '#' }, 'Your Name')
+        ),
+        createElement('p', {},
+            'Part of ',
+            createElement('a', { href: 'http://todomvc.com' }, 'TodoMVC')
+        )
+    );
 }
-
-export { renderHeader, renderMain, renderTodoItem, renderFooter, renderFilterLink, renderSidebar, renderInfo };

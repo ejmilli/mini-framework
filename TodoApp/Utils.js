@@ -1,167 +1,96 @@
+/**
+ * TodoMVC Utility Functions
+ * Simple functions for managing todos
+ */
 import { app } from "./AppInstance.js";
-import { focusElement } from "../Framework/VDom.js";
 
-// Handles keydown for new todo input; adds todo on Enter if valid
-function handleNewTodoKeydown(event) {
-    if (event.key === "Enter" && event.target.value.trim()) {
-        if (addTodo(event.target.value.trim())) {
-            event.target.value = "";
-            setTimeout(() => {
-                focusElement(".new-todo");
-            }, 0);
-        }
-    }
-}
-
-// Toggles all todos when the master checkbox changes
-function handleToggleAll() {
-    toggleAllTodos();
-}
-
-// Handles keydown during todo editing; saves on Enter, cancels on Escape
-function handleEditKeydown(event, todoId) {
-    if (event.key === "Enter") {
-        updateTodoTitle(todoId, event.target.value);
-    }
-    if (event.key === "Escape") {
-        app.setState({
-            editingId: null,
-            focusEditTodo: null,
-        });
-    }
-}
-
-// Returns todos filtered by the current filter ('all', 'active', 'completed')
-function getFilteredTodos(todoList, filter) {
-    switch (filter) {
-        case "active":
-            return (todoList || []).filter((todo) => !todo.completed);
-        case "completed":
-            return (todoList || []).filter((todo) => todo.completed);
-        default:
-            return todoList;
-    }
-}
-
-// Adds a new todo if the title is valid (min 2 chars)
-function addTodo(title) {
-    if (title.length < 2) {
-        return false;
-    }
-    const currentState = app.getState();
+// Add a new todo
+export function addTodo(text) {
+    const { todos, nextId } = app.getState();
     const newTodo = {
-        id: currentState.nextId,
-        title: title,
-        completed: false,
+        id: nextId,
+        text: text.trim(),
+        completed: false
     };
-
+    
     app.setState({
-        todos: [...currentState.todos, newTodo],
-        nextId: currentState.nextId + 1,
+        todos: [...todos, newTodo],
+        nextId: nextId + 1
     });
-    return true;
 }
 
-// Toggles completion status of a single todo
-function toggleTodo(id) {
-    const state = app.getState();
-    const updatedTodos = (state.todos || []).map((todo) =>
+// Toggle a todo's completed status
+export function toggleTodo(id) {
+    const { todos } = app.getState();
+    const updatedTodos = todos.map(todo => 
         todo.id === id ? { ...todo, completed: !todo.completed } : todo
     );
-
+    
     app.setState({ todos: updatedTodos });
 }
 
-// Updates a todo's title or deletes it if the new title is empty or too short
-function updateTodoTitle(id, newTitle) {
-    const trimmedTitle = newTitle.trim();
-
-    if (trimmedTitle.length < 2) {
-        return;
-    }
-
-    const state = app.getState();
-    const updatedTodos = (state.todos || []).map((todo) =>
-        todo.id === id ? { ...todo, title: trimmedTitle } : todo
-    );
-
-    app.setState({
-        todos: updatedTodos,
-        editingId: null,
-        focusEditTodo: null,
-    });
-}
-
-// Removes a todo by id
-function removeTodo(id) {
-    const state = app.getState();
-    const updatedTodos = (state.todos || []).filter((todo) => todo.id !== id);
+// Delete a todo
+export function deleteTodo(id) {
+    const { todos } = app.getState();
+    const updatedTodos = todos.filter(todo => todo.id !== id);
+    
     app.setState({ todos: updatedTodos });
 }
 
-function editTodo(id, newTitle) {
-    const trimmedTitle = newTitle.trim();
-  
-    if (trimmedTitle.length < 2) {
-      return;
-    }
-  
-    const state = app.getState();
-    const updatedTodos = (state.todos || []).map((todo) =>
-      todo.id === id ? { ...todo, title: trimmedTitle } : todo
+// Edit a todo's text
+export function editTodo(id, newText) {
+    const { todos } = app.getState();
+    const updatedTodos = todos.map(todo => 
+        todo.id === id ? { ...todo, text: newText.trim() } : todo
     );
-  
-    app.setState({
-      todos: updatedTodos,
-      editingId: null,
-      focusEditTodo: null,
-    });
-  }
-
-// Sets editing mode for a todo and focuses its input
-function startEdit(id) {
-    app.setState({
-        editingId: id,
-        focusEditTodo: id,
-    });
-
-    setTimeout(() => {
-        focusElement(".edit", "end");
-    }, 0);
+    
+    app.setState({ todos: updatedTodos });
 }
 
-// Toggles all todos: if all are complete, mark all incomplete; else, mark all complete
-function toggleAllTodos() {
-    const state = app.getState();
-    const allCompleted =
-        (state.todos || []).length > 0 &&
-        (state.todos || []).every((todo) => todo.completed);
-    const updatedTodos = (state.todos || []).map((todo) => ({
-        ...todo,
-        completed: !allCompleted,
+// Toggle all todos
+export function toggleAll() {
+    const { todos } = app.getState();
+    const allCompleted = todos.every(todo => todo.completed);
+    const updatedTodos = todos.map(todo => ({ 
+        ...todo, 
+        completed: !allCompleted 
     }));
-
+    
     app.setState({ todos: updatedTodos });
 }
 
-// Removes all completed todos
-function clearCompletedTodos() {
-    const state = app.getState();
-    const activeTodos = (state.todos || []).filter((todo) => !todo.completed);
+// Clear completed todos
+export function clearCompleted() {
+    const { todos } = app.getState();
+    const activeTodos = todos.filter(todo => !todo.completed);
+    
     app.setState({ todos: activeTodos });
 }
 
-export {
-    handleNewTodoKeydown,
-    handleToggleAll,
-    handleEditKeydown,
-    getFilteredTodos,
-    addTodo,
-    toggleTodo,
-    updateTodoTitle,
-    removeTodo,
-    editTodo,
-    startEdit,
-    toggleAllTodos,
-    clearCompletedTodos,
+// Get filtered todos based on current filter
+export function getFilteredTodos() {
+    const { todos, filter } = app.getState();
+    
+    switch (filter) {
+        case 'active':
+            return todos.filter(todo => !todo.completed);
+        case 'completed':
+            return todos.filter(todo => todo.completed);
+        default:
+            return todos;
+    }
+}
+
+// Set the current filter
+export function setFilter(newFilter) {
+    app.setState({ filter: newFilter });
+}
+
+// Get counts for footer
+export function getCounts() {
+    const { todos } = app.getState();
+    const active = todos.filter(todo => !todo.completed).length;
+    const completed = todos.filter(todo => todo.completed).length;
+    
+    return { active, completed, total: todos.length };
 }
