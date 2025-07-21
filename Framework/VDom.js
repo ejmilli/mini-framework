@@ -62,6 +62,17 @@ export function createRealNode(vnode) {
         } else if (key === 'style' && typeof vnode.attrs[key] === 'object') {
             // Handle inline styles
             Object.assign(element.style, vnode.attrs[key]);
+        } else if (key === 'checked') {
+            // Handle checkbox checked state properly
+            element.checked = vnode.attrs[key];
+        } else if (key === 'value') {
+            // Handle input values properly
+            element.value = vnode.attrs[key];
+        } else if (key === 'autofocus') {
+            // Handle autofocus properly
+            if (vnode.attrs[key]) {
+                setTimeout(() => element.focus(), 0);
+            }
         } else {
             // Handle regular attributes like id, placeholder, etc.
             element.setAttribute(key, vnode.attrs[key]);
@@ -85,12 +96,42 @@ export function createRealNode(vnode) {
  * Think of it like: "Here's the new plan for how the page should look - make it happen!"
  */
 export function updateDom(container, newVNodes) {
-    // Simple approach: clear everything and rebuild from scratch
-    // (More advanced versions would only change what's different)
-    container.innerHTML = '';  // Clear the old content
-    
     // Make sure we have an array to work with
     const vNodeArray = Array.isArray(newVNodes) ? newVNodes : [newVNodes];
+    
+    // Get existing children
+    const existingChildren = Array.from(container.children);
+    
+    // Try intelligent diffing first
+    if (existingChildren.length === vNodeArray.length) {
+        let canUpdateInPlace = true;
+        
+        // Check if we can update in place by comparing top-level structure
+        for (let i = 0; i < vNodeArray.length; i++) {
+            const vnode = vNodeArray[i];
+            const existing = existingChildren[i];
+            
+            if (!vnode || !existing || 
+                existing.tagName.toLowerCase() !== vnode.tag.toLowerCase() ||
+                existing.className !== (vnode.attrs?.className || '')) {
+                canUpdateInPlace = false;
+                break;
+            }
+        }
+        
+        if (canUpdateInPlace) {
+            // Update each element in place
+            vNodeArray.forEach((vnode, index) => {
+                if (vnode) {
+                    updateElementInPlace(existingChildren[index], vnode);
+                }
+            });
+            return;
+        }
+    }
+    
+    // Fallback: clear everything and rebuild from scratch
+    container.innerHTML = '';
     
     // Build each new element and add it to the page
     vNodeArray.forEach(vnode => {
@@ -98,6 +139,220 @@ export function updateDom(container, newVNodes) {
             container.appendChild(createRealNode(vnode)); // Turn blueprint into real HTML
         }
     });
+}
+
+/**
+ * Update an existing DOM element in place with new virtual DOM data
+ */
+function updateElementInPlace(element, vnode) {
+    // Special handling for todo list container
+    if (element.tagName === 'UL' && element.classList.contains('todo-list')) {
+        updateTodoList(element, vnode);
+        return;
+    }
+    
+    // Update basic attributes
+    if (vnode.attrs) {
+        Object.keys(vnode.attrs).forEach(key => {
+            if (key.startsWith('on')) {
+                // Skip event handlers - they're already attached
+                return;
+            } else if (key === 'className') {
+                if (element.className !== vnode.attrs[key]) {
+                    element.className = vnode.attrs[key];
+                }
+            } else if (key === 'style' && typeof vnode.attrs[key] === 'string') {
+                element.setAttribute('style', vnode.attrs[key]);
+            }
+        });
+    }
+    
+    // Update text content for simple elements
+    if (vnode.children.length === 1 && typeof vnode.children[0] === 'string') {
+        if (element.textContent !== vnode.children[0]) {
+            element.textContent = vnode.children[0];
+        }
+    } else if (vnode.children.length > 0) {
+        // For complex children, recursively update or rebuild
+        const existingChildElements = Array.from(element.children);
+        
+        if (existingChildElements.length === vnode.children.length) {
+            // Try to update children in place
+            vnode.children.forEach((childVNode, index) => {
+                const existingChild = existingChildElements[index];
+                if (existingChild && typeof childVNode === 'object' && 
+                    existingChild.tagName.toLowerCase() === childVNode.tag.toLowerCase()) {
+                    updateElementInPlace(existingChild, childVNode);
+                } else {
+                    // Replace this child
+                    element.replaceChild(createRealNode(childVNode), existingChild);
+                }
+            });
+        } else {
+            // Different number of children, rebuild
+            element.innerHTML = '';
+            vnode.children.forEach(child => {
+                element.appendChild(createRealNode(child));
+            });
+        }
+    }
+}
+
+/**
+ * Smart update for todo list - only updates changed items by ID
+ */
+function updateTodoList(ul, vnode) {
+    const existingItems = Array.from(ul.children); // Current <li> elements
+    const newItems = vnode.children; // New virtual <li> elements
+    
+    // Create maps for efficient lookup
+    const existingById = new Map();
+    existingItems.forEach(li => {
+        const id = li.getAttribute('data-id');
+        if (id) {
+            existingById.set(id, li);
+        }
+    });
+    
+    const newById = new Map();
+    newItems.forEach(vli => {
+        const id = vli.attrs?.['data-id'];
+        if (id) {
+            newById.set(id, vli);
+        }
+    });
+    
+    // Remove items that no longer exist
+    existingById.forEach((li, id) => {
+        if (!newById.has(id)) {
+            li.remove();
+        }
+    });
+    
+    // Update existing items and add new ones
+    newItems.forEach((vli, index) => {
+        const id = vli.attrs?.['data-id'];
+        if (!id) return;
+        
+        const existingLi = existingById.get(id);
+        
+        if (existingLi) {
+            // Update this specific todo item
+            updateTodoItem(existingLi, vli);
+            
+            // Ensure correct position
+            const currentIndex = Array.from(ul.children).indexOf(existingLi);
+            if (currentIndex !== index) {
+                if (index >= ul.children.length) {
+                    ul.appendChild(existingLi);
+                } else {
+                    ul.insertBefore(existingLi, ul.children[index]);
+                }
+            }
+        } else {
+            // Create new item
+            const newLi = createRealNode(vli);
+            if (index >= ul.children.length) {
+                ul.appendChild(newLi);
+            } else {
+                ul.insertBefore(newLi, ul.children[index]);
+            }
+        }
+    });
+}
+
+/**
+ * Update a specific todo item (li element) in place
+ */
+function updateTodoItem(li, vli) {
+    const newClassName = vli.attrs?.className || '';
+    const currentClassName = li.className;
+    
+    // Update class name (this handles editing/completed states)
+    if (currentClassName !== newClassName) {
+        li.className = newClassName;
+    }
+    
+    // Check if editing state changed
+    const wasEditing = currentClassName.includes('editing');
+    const isEditing = newClassName.includes('editing');
+    
+    if (wasEditing !== isEditing) {
+        // Editing state changed - need to rebuild content
+        li.innerHTML = '';
+        vli.children.forEach(child => {
+            li.appendChild(createRealNode(child));
+        });
+        
+        // Auto-focus edit input if entering edit mode
+        if (isEditing) {
+            requestAnimationFrame(() => {
+                const editInput = li.querySelector('.edit');
+                if (editInput) {
+                    editInput.focus();
+                    editInput.select();
+                }
+            });
+        }
+    } else {
+        // Same editing state - update specific parts
+        updateTodoItemContent(li, vli);
+    }
+}
+
+/**
+ * Update specific parts of a todo item without rebuilding
+ */
+function updateTodoItemContent(li, vli) {
+    // Update label text
+    const label = li.querySelector('label');
+    const newLabelText = findLabelTextInVNode(vli);
+    if (label && newLabelText && label.textContent !== newLabelText) {
+        label.textContent = newLabelText;
+    }
+    
+    // Update checkbox state
+    const checkbox = li.querySelector('.toggle');
+    const newCheckedState = findCheckboxStateInVNode(vli);
+    if (checkbox && checkbox.checked !== newCheckedState) {
+        checkbox.checked = newCheckedState;
+    }
+}
+
+/**
+ * Helper to find label text in virtual node tree
+ */
+function findLabelTextInVNode(vnode) {
+    if (vnode.tag === 'label' && vnode.children.length > 0) {
+        return vnode.children[0];
+    }
+    if (vnode.children) {
+        for (const child of vnode.children) {
+            if (typeof child === 'object') {
+                const result = findLabelTextInVNode(child);
+                if (result) return result;
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Helper to find checkbox checked state in virtual node tree
+ */
+function findCheckboxStateInVNode(vnode) {
+    if (vnode.tag === 'input' && vnode.attrs?.type === 'checkbox') {
+        return !!vnode.attrs.checked;
+    }
+    if (vnode.children) {
+        for (const child of vnode.children) {
+            if (typeof child === 'object') {
+                const result = findCheckboxStateInVNode(child);
+                if (result !== null) return result;
+            }
+        }
+    }
+    return false;
 }
 
 /**

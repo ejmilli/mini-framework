@@ -5,7 +5,7 @@
 import { createApp } from "../Framework/App.js";
 
 // Create the main app
-export const app = createApp("body");
+export const app = createApp("#app");
 
 // Set up initial state
 app.setState({

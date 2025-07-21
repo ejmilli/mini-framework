@@ -9,7 +9,7 @@ export function addTodo(text) {
     const { todos, nextId } = app.getState();
     const newTodo = {
         id: nextId,
-        text: text.trim(),
+        title: text.trim(),  // Changed from 'text' to 'title' to match Render.js
         completed: false
     };
     
@@ -41,7 +41,7 @@ export function deleteTodo(id) {
 export function editTodo(id, newText) {
     const { todos } = app.getState();
     const updatedTodos = todos.map(todo => 
-        todo.id === id ? { ...todo, text: newText.trim() } : todo
+        todo.id === id ? { ...todo, title: newText.trim() } : todo  // Changed from 'text' to 'title'
     );
     
     app.setState({ todos: updatedTodos });

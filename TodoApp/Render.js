@@ -84,6 +84,7 @@ export function renderTodoItem(todo) {
     function handleEdit(e) {
         if (e.key === 'Enter') {
             editTodo(todo.id, e.target.value.trim());
+            app.setState({ editingId: null }); // Clear editing state
         } else if (e.key === 'Escape') {
             app.setState({ editingId: null });
         }
@@ -98,7 +99,7 @@ export function renderTodoItem(todo) {
             className: 'toggle',
             type: 'checkbox',
             checked: todo.completed,
-            onclick: () => toggleTodo(todo.id)
+            onchange: () => toggleTodo(todo.id)
         }),
         createElement('label', {
             ondblclick: startEdit
