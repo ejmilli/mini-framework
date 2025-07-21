@@ -1,63 +1,46 @@
 /**
- * @fileoverview Routing system for the mini-framework
+ * @fileoverview Simple routing system for mini-framework
  * @version 0.0.1
- * @author The Last of the Mohicans 2
+ * @author Yeah so what
  */
 
-/** @type {Map<string, Function>} Global route storage mapping URLs to handler functions */
-export let allRoutes = new Map()
-export let defaultRoute
+// Store all routes
+const routes = new Map();
 
 /**
- * Adds a new route to the router
- * @param {string} url - URL pattern for the route (e.g., "/", "/about", "/user/:id")
- * @param {Function} handler - Function to execute when route is matched
- * @returns {boolean} True if route was added successfully, false if invalid parameters or route already exists
- * @example
- * addRoute("/home", () => console.log("Home page"));
- * addRoute("/user/:id", (params) => console.log("User:", params.id));
+ * Add a route
  */
-export function addRoute(url, handler) {
-  if (typeof url !== "string" || typeof handler !== "function") return false;
-  if (allRoutes.has(url)) return false;
-  allRoutes.set(url, handler);
-  return true;
-}
-
-export function addDefaultRoute(handler) {
-  if (typeof handler !== "function") return false;
-  defaultRoute = handler;
-  return true;
+export function addRoute(path, handler) {
+    if (typeof path === 'string' && typeof handler === 'function') {
+        routes.set(path, handler);
+        return true;
+    }
+    return false;
 }
 
 /**
- * Executes the handler for a specific route
- * @param {string} url - URL to route to (with or without # prefix)
- * @description If the URL is not found in routes, defaults to "/" route.
- * Updates browser history if the current hash doesn't match the target URL.
- * @example
- * executeRoute("#/home"); // Executes handler for /home route
- * executeRoute("/about");  // Executes handler for /about route
+ * Execute a route handler
  */
 export function executeRoute(url) {
-  // Clean up the URL - remove # prefix if present
-  let cleanUrl = url.startsWith("#") ? url.substring(1) : url;
+    // Clean up URL (remove # if present)
+    const cleanUrl = url.startsWith('#') ? url.substring(1) : url;
+    
+    // Find and execute the route handler
+    const handler = routes.get(cleanUrl) || routes.get('/');
+    
+    if (handler) {
+        handler();
+    }
+    
+    // Update browser hash if needed
+    if (window.location.hash !== '#' + cleanUrl) {
+        window.location.hash = cleanUrl;
+    }
+}
 
-  // If url is not bound to a handler, we route to the default one
-  if (!allRoutes.has(cleanUrl)) {
-    cleanUrl = "/";
-  }
-
-  // Execute the handler
-  if (allRoutes.has(cleanUrl)) {
-    allRoutes.get(cleanUrl)();
-  } else {
-    console.log("No handler found for route:", cleanUrl);
-  }
-
-  // Update browser history if needed
-  const hashUrl = cleanUrl.startsWith("#") ? cleanUrl : "#" + cleanUrl;
-  if (window.location.hash !== hashUrl) {
-    history.pushState(null, "", hashUrl);
-  }
+/**
+ * Get all registered routes
+ */
+export function getAllRoutes() {
+    return Array.from(routes.keys());
 }

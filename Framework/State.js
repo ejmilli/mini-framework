@@ -1,84 +1,62 @@
 /**
- * @fileoverview State management system for the mini-framework
+ * @fileoverview Simple state management for mini-framework
  * @version 0.0.1
- * @author The Last of the Mohicans 2
+ * @author Yeah so what
  */
 
 /**
- * State management class with listener support and automatic updates
- * @class State
+ * Simple State class for managing application state
  */
 export class State {
-    /**
-     * Creates a new State instance
-     * @param {Array<Function>} [listeners] - Optional array of listener functions to call on state changes
-     */
-    constructor(listeners) {
-        /** @type {Object} Internal state storage */
-        this.state = {}
-        /** @type {Array<Function>} Array of listener functions */
-        this.listeners = []
-        /** @type {Function|null} Callback function for triggering updates */
-        this.updateCallback = null // Add this
-        if (listeners && Array.isArray(listeners) && listeners.length > 0) {
-            for (const listener of listeners) {
-                if (typeof listener !== "function") {
-                    return false
-                } else {
-                    this.listeners.push(listener) // Fix: was assigning instead of pushing
-                }
-            }
-        }
-        return true
+    constructor(initialState = {}) {
+        this.state = { ...initialState };
+        this.listeners = [];
+        this.updateCallback = null;
     }
 
     /**
-     * Sets the update callback function that gets called on state changes
-     * @param {Function} callback - Function to call when state is updated
+     * Set the function to call when state updates
      */
     setUpdateCallback(callback) {
         this.updateCallback = callback;
     }
 
     /**
-     * Returns the current state object
-     * @returns {Object} Current state object
+     * Get current state
      */
     getState() {
-        return this.state
+        return { ...this.state };
     }
 
     /**
-     * Updates the state with new values
-     * @param {Object} newVal - Object containing new state values to merge
-     * @param {boolean} [triggerUpdate=true] - Whether to trigger listeners and update callbacks
-     * @returns {boolean} True if state was updated successfully, false if newVal is invalid
+     * Update state with new values
      */
-    setState(newVal, triggerUpdate = true) {
-        if (typeof newVal !== "object" || newVal === null) {
-            return false // Ensure newVal is an object
-        }
-        this.state = { ...this.state, ...newVal } // Add more robust check
-        if (triggerUpdate) {
-            this.update()
-            // Trigger DOM re-render
-            if (this.updateCallback) {
-                this.updateCallback()
+    setState(newState, triggerUpdate = true) {
+        if (typeof newState === 'object' && newState !== null) {
+            this.state = { ...this.state, ...newState };
+            
+            if (triggerUpdate) {
+                // Call all listeners
+                this.listeners.forEach(listener => listener(this.state));
+                
+                // Trigger DOM update
+                if (this.updateCallback) {
+                    this.updateCallback();
+                }
             }
         }
-        return true
+        return this.state;
     }
 
     /**
-     * Executes all registered listener functions
-     * @private
+     * Add a listener for state changes
      */
-    update() {
-        for (const listener of this.listeners) { // Fix: iterate over listeners correctly
-            listener()
+    subscribe(listener) {
+        if (typeof listener === 'function') {
+            this.listeners.push(listener);
         }
     }
 }
 
-/** @type {State} Global state instance used throughout the framework */
-export const globalStorage = new State()
+// Global state instance
+export const globalStorage = new State({});

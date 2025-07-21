@@ -1,4 +1,4 @@
-import { app } from "./StartApp.js";
+import { app } from "./AppInstance.js";
 import { focusElement } from "../Framework/VDom.js";
 
 // Handles keydown for new todo input; adds todo on Enter if valid

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>State Management Demo</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button { 
+            padding: 8px 16px; 
+            margin: 4px; 
+            font-size: 14px; 
+            cursor: pointer; 
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover { background: #005a9e; }
+        .state-display {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .log {
+            background: #e8f4fd;
+            padding: 8px;
+            margin: 4px 0;
+            border-left: 3px solid #007acc;
+            font-size: 12px;
+        }
+        input { 
+            padding: 8px; 
+            margin: 4px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Advanced State Management Demo</h1>
+        
+        <div class="section">
+            <h3>Current State</h3>
+            <div id="stateDisplay" class="state-display"></div>
+        </div>
+
+        <div class="section">
+            <h3>Basic State Operations</h3>
+            <button onclick="incrementCounter()">Increment Counter</button>
+            <button onclick="addUser()">Add Random User</button>
+            <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+            <button onclick="resetState()">Reset State</button>
+        </div>
+
+        <div class="section">
+            <h3>Advanced State Operations</h3>
+            <input type="text" id="todoInput" placeholder="Enter todo item">
+            <button onclick="addTodo()">Add Todo</button>
+            <button onclick="batchUpdate()">Batch Update</button>
+            <button onclick="functionalUpdate()">Functional Update</button>
+        </div>
+
+        <div class="section">
+            <h3>State History & Debugging</h3>
+            <button onclick="showHistory()">Show History</button>
+            <button onclick="revertToPrevious()">Revert to Previous</button>
+            <button onclick="showDebugInfo()">Debug Info</button>
+        </div>
+
+        <div class="section">
+            <h3>Activity Log</h3>
+            <div id="logContainer"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { State, createState, globalStorage, useGlobalState, setGlobalState } from './Framework/State.js';
+
+        // Initialize state with some default values
+        const appState = createState({
+            counter: 0,
+            users: ['Alice', 'Bob'],
+            darkMode: false,
+            todos: [],
+            settings: {
+                theme: 'light',
+                notifications: true
+            }
+        });
+
+        const logContainer = document.getElementById('logContainer');
+        const stateDisplay = document.getElementById('stateDisplay');
+
+        function log(message) {
+            const div = document.createElement('div');
+            div.className = 'log';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+
+        // Subscribe to state changes
+        const unsubscribe = appState.subscribe((newState, oldState) => {
+            log(`State changed: ${JSON.stringify(newState)}`);
+            updateDisplay();
+        });
+
+        function updateDisplay() {
+            const state = appState.getState();
+            stateDisplay.textContent = JSON.stringify(state, null, 2);
+        }
+
+        // Basic operations
+        window.incrementCounter = () => {
+            appState.setState({ counter: appState.getStateProperty('counter') + 1 });
+        };
+
+        window.addUser = () => {
+            const names = ['Charlie', 'Diana', 'Eve', 'Frank', 'Grace'];
+            const randomName = names[Math.floor(Math.random() * names.length)];
+            const currentUsers = appState.getStateProperty('users');
+            appState.setState({ users: [...currentUsers, randomName] });
+        };
+
+        window.toggleDarkMode = () => {
+            appState.setState(currentState => ({
+                darkMode: !currentState.darkMode,
+                settings: {
+                    ...currentState.settings,
+                    theme: currentState.darkMode ? 'light' : 'dark'
+                }
+            }));
+        };
+
+        window.resetState = () => {
+            appState.reset({
+                counter: 0,
+                users: ['Alice', 'Bob'],
+                darkMode: false,
+                todos: [],
+                settings: { theme: 'light', notifications: true }
+            });
+            log('State reset to initial values');
+        };
+
+        // Advanced operations
+        window.addTodo = () => {
+            const input = document.getElementById('todoInput');
+            const todoText = input.value.trim();
+            if (todoText) {
+                const currentTodos = appState.getStateProperty('todos');
+                appState.setState({
+                    todos: [...currentTodos, {
+                        id: Date.now(),
+                        text: todoText,
+                        completed: false
+                    }]
+                });
+                input.value = '';
+                log(`Added todo: "${todoText}"`);
+            }
+        };
+
+        window.batchUpdate = () => {
+            log('Starting batch update...');
+            appState.batch(() => {
+                appState.setState({ counter: appState.getStateProperty('counter') + 5 });
+                appState.setState({ users: [...appState.getStateProperty('users'), 'BatchUser'] });
+                appState.setState({ 
+                    settings: { 
+                        ...appState.getStateProperty('settings'), 
+                        notifications: !appState.getStateProperty('settings').notifications 
+                    } 
+                });
+            });
+            log('Batch update completed');
+        };
+
+        window.functionalUpdate = () => {
+            appState.setState(currentState => {
+                log('Performing functional state update');
+                return {
+                    ...currentState,
+                    counter: currentState.counter * 2,
+                    users: currentState.users.map(user => user.toUpperCase()),
+                    todos: currentState.todos.map(todo => ({
+                        ...todo,
+                        completed: Math.random() > 0.5
+                    }))
+                };
+            });
+        };
+
+        // History and debugging
+        window.showHistory = () => {
+            const history = appState.getHistory();
+            log(`State history (${history.length} entries):`);
+            history.forEach((state, index) => {
+                log(`  ${index}: ${JSON.stringify(state)}`);
+            });
+        };
+
+        window.revertToPrevious = () => {
+            const history = appState.getHistory();
+            if (history.length > 1) {
+                appState.revertToHistory(history.length - 2);
+                log('Reverted to previous state');
+            } else {
+                log('No previous state to revert to');
+            }
+        };
+
+        window.showDebugInfo = () => {
+            const debug = appState.getDebugInfo();
+            log(`Debug Info: ${JSON.stringify(debug, null, 2)}`);
+        };
+
+        // Selectors example
+        const counterSelector = appState.createSelector(state => state.counter);
+        const todoCountSelector = appState.createSelector(state => state.todos.length);
+
+        setInterval(() => {
+            const counter = counterSelector();
+            const todoCount = todoCountSelector();
+            document.title = `State Demo - Counter: ${counter}, Todos: ${todoCount}`;
+        }, 1000);
+
+        // Initial display
+        updateDisplay();
+        log('State management demo initialized');
+
+        // Demo global state
+        setGlobalState({ appName: 'Mini Framework Demo', version: '1.0.0' });
+        log(`Global state: ${JSON.stringify(useGlobalState())}`);
+    </script>
+</body>
+</html>

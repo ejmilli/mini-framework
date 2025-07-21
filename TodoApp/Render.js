@@ -1,4 +1,4 @@
-import { app } from "./StartApp.js";
+import { app } from "./AppInstance.js";
 import { handleNewTodoKeydown, handleToggleAll, handleEditKeydown, clearCompletedTodos, toggleTodo, editTodo, startEdit, removeTodo } from "./Utils.js";
 import { createVirtualElement } from "../Framework/VDom.js";
 
