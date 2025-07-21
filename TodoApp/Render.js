@@ -179,7 +179,7 @@ export function renderSidebar() {
             createElement('span', { className: 'source-links' },
                 createElement('h5', {}, 'Usage'),
                 createElement('a', {
-                    href: 'https://github.com/JSundb/mini-framework'
+                    href: 'https://github.com/ejmilli/mini-framework'
                 }, 'Documentation')
             )
         ),
@@ -196,7 +196,7 @@ export function renderInfo() {
         createElement('p', {}, 'Double-click to edit a todo'),
         createElement('p', {},
             'Created by ',
-            createElement('a', { href: '#' }, 'Your Name')
+            createElement('a', { href: '#crucial-gaywork' }, 'Sagyn, Saddam Hussain, Ejmilli, Chan')
         ),
         createElement('p', {},
             'Part of ',

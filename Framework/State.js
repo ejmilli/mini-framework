@@ -1,7 +1,7 @@
 /**
  * @fileoverview Simple state management for mini-framework
  * @version 0.0.1
- * @author Yeah so what
+ * @author Sagyn, Saddam Hussain, Ejmilli, Chan
  */
 
 /**
