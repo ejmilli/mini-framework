@@ -5,8 +5,8 @@
  */
 import { app } from "./AppInstance.js";
 import { renderHeader, renderMain, renderFooter, renderSidebar, renderInfo } from "./Render.js";
-import { setFilter } from "./Utils.js";
-import { createElement } from "../Framework/VDom.js";
+import { setFilter } from "./Utility.js";
+import { createElement } from "../miniFramework/VirtualDom.js";
 
 // Set up routing
 app.addRoute("/", () => setFilter("all"));

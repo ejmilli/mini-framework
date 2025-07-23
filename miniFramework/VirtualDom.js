@@ -19,6 +19,9 @@
  * (make plan)  →  (build element)  →  (put on page)
  */
 
+// Import specialized todo list update functions
+import { updateTodoList } from './TodoDomUpdater.js';
+
 /**
  * Create a virtual DOM element - this makes a "blueprint" of an HTML element
  * 
@@ -145,9 +148,9 @@ export function updateDom(container, newVNodes) {
  * Update an existing DOM element in place with new virtual DOM data
  */
 function updateElementInPlace(element, vnode) {
-    // Special handling for todo list container
+    // Special handling for todo list container - use specialized update logic
     if (element.tagName === 'UL' && element.classList.contains('todo-list')) {
-        updateTodoList(element, vnode);
+        updateTodoList(element, vnode, createRealNode);
         return;
     }
     
@@ -196,163 +199,6 @@ function updateElementInPlace(element, vnode) {
             });
         }
     }
-}
-
-/**
- * Smart update for todo list - only updates changed items by ID
- */
-function updateTodoList(ul, vnode) {
-    const existingItems = Array.from(ul.children); // Current <li> elements
-    const newItems = vnode.children; // New virtual <li> elements
-    
-    // Create maps for efficient lookup
-    const existingById = new Map();
-    existingItems.forEach(li => {
-        const id = li.getAttribute('data-id');
-        if (id) {
-            existingById.set(id, li);
-        }
-    });
-    
-    const newById = new Map();
-    newItems.forEach(vli => {
-        const id = vli.attrs?.['data-id'];
-        if (id) {
-            newById.set(id, vli);
-        }
-    });
-    
-    // Remove items that no longer exist
-    existingById.forEach((li, id) => {
-        if (!newById.has(id)) {
-            li.remove();
-        }
-    });
-    
-    // Update existing items and add new ones
-    newItems.forEach((vli, index) => {
-        const id = vli.attrs?.['data-id'];
-        if (!id) return;
-        
-        const existingLi = existingById.get(id);
-        
-        if (existingLi) {
-            // Update this specific todo item
-            updateTodoItem(existingLi, vli);
-            
-            // Ensure correct position
-            const currentIndex = Array.from(ul.children).indexOf(existingLi);
-            if (currentIndex !== index) {
-                if (index >= ul.children.length) {
-                    ul.appendChild(existingLi);
-                } else {
-                    ul.insertBefore(existingLi, ul.children[index]);
-                }
-            }
-        } else {
-            // Create new item
-            const newLi = createRealNode(vli);
-            if (index >= ul.children.length) {
-                ul.appendChild(newLi);
-            } else {
-                ul.insertBefore(newLi, ul.children[index]);
-            }
-        }
-    });
-}
-
-/**
- * Update a specific todo item (li element) in place
- */
-function updateTodoItem(li, vli) {
-    const newClassName = vli.attrs?.className || '';
-    const currentClassName = li.className;
-    
-    // Update class name (this handles editing/completed states)
-    if (currentClassName !== newClassName) {
-        li.className = newClassName;
-    }
-    
-    // Check if editing state changed
-    const wasEditing = currentClassName.includes('editing');
-    const isEditing = newClassName.includes('editing');
-    
-    if (wasEditing !== isEditing) {
-        // Editing state changed - need to rebuild content
-        li.innerHTML = '';
-        vli.children.forEach(child => {
-            li.appendChild(createRealNode(child));
-        });
-        
-        // Auto-focus edit input if entering edit mode
-        if (isEditing) {
-            requestAnimationFrame(() => {
-                const editInput = li.querySelector('.edit');
-                if (editInput) {
-                    editInput.focus();
-                    editInput.select();
-                }
-            });
-        }
-    } else {
-        // Same editing state - update specific parts
-        updateTodoItemContent(li, vli);
-    }
-}
-
-/**
- * Update specific parts of a todo item without rebuilding
- */
-function updateTodoItemContent(li, vli) {
-    // Update label text
-    const label = li.querySelector('label');
-    const newLabelText = findLabelTextInVNode(vli);
-    if (label && newLabelText && label.textContent !== newLabelText) {
-        label.textContent = newLabelText;
-    }
-    
-    // Update checkbox state
-    const checkbox = li.querySelector('.toggle');
-    const newCheckedState = findCheckboxStateInVNode(vli);
-    if (checkbox && checkbox.checked !== newCheckedState) {
-        checkbox.checked = newCheckedState;
-    }
-}
-
-/**
- * Helper to find label text in virtual node tree
- */
-function findLabelTextInVNode(vnode) {
-    if (vnode.tag === 'label' && vnode.children.length > 0) {
-        return vnode.children[0];
-    }
-    if (vnode.children) {
-        for (const child of vnode.children) {
-            if (typeof child === 'object') {
-                const result = findLabelTextInVNode(child);
-                if (result) return result;
-            }
-        }
-    }
-    return null;
-}
-
-/**
- * Helper to find checkbox checked state in virtual node tree
- */
-function findCheckboxStateInVNode(vnode) {
-    if (vnode.tag === 'input' && vnode.attrs?.type === 'checkbox') {
-        return !!vnode.attrs.checked;
-    }
-    if (vnode.children) {
-        for (const child of vnode.children) {
-            if (typeof child === 'object') {
-                const result = findCheckboxStateInVNode(child);
-                if (result !== null) return result;
-            }
-        }
-    }
-    return false;
 }
 
 /**

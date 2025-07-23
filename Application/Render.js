@@ -12,8 +12,8 @@ import {
     editTodo,
     getFilteredTodos,
     getCounts 
-} from "./Utils.js";
-import { createElement } from "../Framework/VDom.js";
+} from "./Utility.js";
+import { createElement } from "../miniFramework/VirtualDom.js";
 
 // Render the header with title and input
 export function renderHeader() {
@@ -118,7 +118,15 @@ export function renderTodoItem(todo) {
                 className: 'edit',
                 value: todo.title,
                 onkeydown: handleEdit,
-                onblur: () => app.setState({ editingId: null })
+                onblur: () => {
+                    // Use setTimeout to prevent race condition with DOM updates
+                    setTimeout(() => {
+                        const currentState = app.getState();
+                        if (currentState.editingId === todo.id) {
+                            app.setState({ editingId: null });
+                        }
+                    }, 0);
+                }
             })
         );
     }

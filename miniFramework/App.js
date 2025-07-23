@@ -4,8 +4,8 @@
  * @author Sagyn, Saddam Hussain, Ejmilli, Chan
  */
 
-import { State, globalStorage } from "./State.js";
-import { updateDom } from "./VDom.js";
+import { State, globalStorage } from "./StateManager.js";
+import { updateDom } from "./VirtualDom.js";
 import { addRoute, executeRoute } from "./Routing.js";
 
 /**

@@ -2,7 +2,7 @@
  * TodoMVC App Instance
  * Simple todo application using mini-framework
  */
-import { createApp } from "../Framework/App.js";
+import { createApp } from "../miniFramework/App.js";
 
 // Create the main app
 export const app = createApp("#app");
