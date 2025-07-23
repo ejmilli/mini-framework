@@ -62,6 +62,9 @@ export function createRealNode(vnode) {
         } else if (key === 'className') {
             // Handle CSS classes
             element.className = vnode.attrs[key];
+        } else if (key === 'htmlFor') {
+            // Handle label htmlFor attribute (convert to 'for')
+            element.setAttribute('for', vnode.attrs[key]);
         } else if (key === 'style' && typeof vnode.attrs[key] === 'object') {
             // Handle inline styles
             Object.assign(element.style, vnode.attrs[key]);
